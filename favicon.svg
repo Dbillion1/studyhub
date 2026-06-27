@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="StudyHub logo">
+  <defs>
+    <linearGradient id="g" x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="0.55" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#0a0a0f"/>
+  <path d="M14 20.5 32 12l18 8.5-18 8.5-18-8.5Z" fill="url(#g)"/>
+  <path d="M21 28v10.2c0 4.6 4.9 8.3 11 8.3s11-3.7 11-8.3V28l-11 5.2L21 28Z" fill="url(#g)" opacity="0.9"/>
+  <path d="M50 22v16" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="50" cy="42" r="4" fill="#22d3ee"/>
+  <path d="M23 52h18" stroke="#f4f4ff" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+</svg>
