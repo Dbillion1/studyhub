@@ -135,4 +135,21 @@ function planFromPriceId(priceId) {
   return 'free';
 }
 
-module.exports = { DEFAULT_HEADERS, json, empty, env, verifyUser, supabaseRest, ensureProfile, getProfile, updateProfile, publicAccount, activePlan, planFromPriceId };
+// Admin-only: permanently delete an auth user. Requires the service-role key
+// and is only ever called from a function after verifying the caller's own JWT.
+async function deleteAuthUser(userId) {
+  const url = env('SUPABASE_URL').replace(/\/$/, '');
+  const service = env('SUPABASE_SERVICE_ROLE_KEY');
+  const res = await fetch(`${url}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+    headers: { apikey: service, Authorization: `Bearer ${service}` }
+  });
+  if (!res.ok && res.status !== 404) {
+    let t = ''; try { t = await res.text(); } catch (e) {}
+    const err = new Error('Failed to delete account: ' + (t || ('HTTP ' + res.status)));
+    err.statusCode = res.status; throw err;
+  }
+  return true;
+}
+
+module.exports = { DEFAULT_HEADERS, json, empty, env, verifyUser, supabaseRest, ensureProfile, getProfile, updateProfile, publicAccount, activePlan, planFromPriceId, deleteAuthUser };

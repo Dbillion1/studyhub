@@ -1,5 +1,6 @@
 # StudyHub
 
+> For full deployment instructions (GitHub, Supabase, Stripe, Netlify, AI keys), see **MASTER_SETUP.md**.
 StudyHub is an AI-powered study web app for secondary school students. It includes an AI tutor, revision hub, quizzes, flashcards, study planner, community area, achievements, Free / Pro / Ultimate plan status, affiliate-ready resource links, and secure subscription infrastructure.
 
 This production-ready monetisation version uses:

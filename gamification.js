@@ -12,7 +12,7 @@ function renderGamification() {
 
   byId('gamProfile').innerHTML = `
     <div class="flex items-center gap-md mb-3">
-      <div class="avatar" style="width:64px;height:64px;font-size:1.5rem;background:var(--grad1)">${avatarChar(session.name)}</div>
+      <div class="avatar" style="width:64px;height:64px;font-size:1.5rem;background:var(--grad1)${currentAvatar() ? (";background-image:url('" + currentAvatar() + "');background-size:cover;background-position:center") : ''}">${currentAvatar() ? '' : avatarChar(session.name)}</div>
       <div>
         <h2 style="font-weight:800;font-size:1.4rem">${esc(session.name)}</h2>
         <div class="text-muted fs-sm">Level ${lvl} · ${levelTitle(lvl)}</div>

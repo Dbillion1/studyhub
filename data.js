@@ -315,3 +315,87 @@ function buildPromptLibrary() {
   return list;
 }
 const PROMPTS = buildPromptLibrary();
+
+/* ════════════════════════════════════════════════════════════
+   GCSE content structure (Phase 8)
+   GENERIC, exam-board-neutral study scaffolding only. This is NOT
+   aligned to any specific exam board and deliberately avoids
+   board-specific claims. Sample cards use widely-accepted facts and
+   are clearly marked as samples in the UI.
+   ════════════════════════════════════════════════════════════ */
+const CONTENT_NOTE = 'General GCSE revision: generic practice material, not aligned to any specific exam board. Always check your own exam board specification (for example AQA, Edexcel, OCR, WJEC) for exact content and wording.';
+
+const GCSE_CONTENT = {
+  maths: {
+    focus: 'Most GCSE maths papers test number, algebra, ratio and proportion, geometry, probability and statistics.',
+    moves: ['Practise both with and without a calculator.', 'Always show your working - method marks add up.', 'Redo questions you got wrong a week later.'],
+    samples: [
+      { front: 'What is the quadratic formula?', back: 'x = (-b ± √(b² - 4ac)) / 2a, for ax² + bx + c = 0.' },
+      { front: 'Area of a circle?', back: 'A = πr².' },
+      { front: 'Pythagoras\u2019 theorem?', back: 'a² + b² = c² for a right-angled triangle.' }
+    ]
+  },
+  english: {
+    focus: 'In GCSE English most marks come from how well you analyse and structure, not only what you know.',
+    moves: ['Always link a quotation to its effect on the reader.', 'Plan for a few minutes before writing an essay.', 'Learn a small set of flexible quotations really well.'],
+    samples: [
+      { front: 'What is a metaphor?', back: 'A direct comparison saying one thing is another, without "like" or "as".' },
+      { front: 'What is personification?', back: 'Giving human qualities to something non-human.' },
+      { front: 'What does PEE stand for?', back: 'Point, Evidence, Explanation - a paragraph structure (sometimes PEEL with Link).' }
+    ]
+  },
+  science: {
+    focus: 'Across biology, chemistry and physics, examiners reward precise definitions and correct use of key words and units.',
+    moves: ['Learn the unit for every quantity (for example force in newtons).', 'Know the required practicals and their variables.', 'Label diagrams from memory.'],
+    samples: [
+      { front: 'What is the unit of force?', back: 'The newton (N).' },
+      { front: 'Which organelle is the "powerhouse of the cell"?', back: 'The mitochondria.' },
+      { front: 'What is osmosis?', back: 'The movement of water across a partially permeable membrane, from higher to lower water concentration.' }
+    ]
+  },
+  geography: {
+    focus: 'GCSE geography rewards named examples and case studies you can both describe and explain.',
+    moves: ['Learn one or two case studies per topic in depth.', 'Practise describing patterns from maps and graphs.', 'Use cause-and-effect connectives like "this leads to".'],
+    samples: [
+      { front: 'What causes most earthquakes?', back: 'Movement at tectonic plate boundaries.' },
+      { front: 'What happens at a constructive plate margin?', back: 'Plates move apart and new crust forms.' },
+      { front: 'Where does a river deposit most of its load?', back: 'Near its mouth, where the river slows down.' }
+    ]
+  },
+  history: {
+    focus: 'GCSE history is about supported judgement: accurate facts plus explanation of their significance.',
+    moves: ['Memorise key dates and a few precise facts per topic.', 'Practise the "how far do you agree" structure.', 'For sources, weigh content, origin and purpose.'],
+    samples: [
+      { front: 'In which year did the Second World War begin in Europe?', back: '1939.' },
+      { front: 'Which treaty was signed after the First World War?', back: 'The Treaty of Versailles (1919).' },
+      { front: 'The Cold War was mainly between which two powers?', back: 'The USA and the USSR.' }
+    ]
+  },
+  cs: {
+    focus: 'GCSE computer science mixes theory of how computers work with computational thinking and some programming.',
+    moves: ['Practise tracing code by hand.', 'Learn definitions precisely (algorithm, variable, RAM).', 'Convert between binary, denary and hex until it is automatic.'],
+    samples: [
+      { front: 'What is an algorithm?', back: 'A step-by-step set of instructions to solve a problem.' },
+      { front: 'What does RAM do?', back: 'It is volatile working memory holding data and programs currently in use.' },
+      { front: 'When is an AND gate true?', back: 'Only when both inputs are true.' }
+    ]
+  },
+  french: {
+    focus: 'GCSE French rewards accurate verbs, a range of tenses, and opinions backed by reasons.',
+    moves: ['Master the present, past (passé composé) and future tenses.', 'Learn opinion phrases plus "parce que" reasons.', 'Do a little listening practice often.'],
+    samples: [
+      { front: '"I have" in French?', back: "J'ai (from avoir)." },
+      { front: '"School" in French?', back: 'une école.' },
+      { front: '"Hello" in French?', back: 'Bonjour.' }
+    ]
+  },
+  german: {
+    focus: 'GCSE German rewards correct cases, word order, and a range of tenses.',
+    moves: ['Learn the case tables (nominative, accusative, dative).', 'Remember the verb-second rule in main clauses.', 'Build opinion phrases with reasons.'],
+    samples: [
+      { front: '"Thank you" in German?', back: 'Danke.' },
+      { front: 'What is the accusative case used for?', back: 'The direct object.' },
+      { front: '"I am called..." in German?', back: 'Ich heiße...' }
+    ]
+  }
+};

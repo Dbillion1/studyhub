@@ -43,6 +43,8 @@ const K = {
   theme: 'studyhub:theme',
   community: 'studyhub:community',
   communitySeeded: 'studyhub:community_seeded',
+  reports: 'studyhub:community_reports',
+  modLog: 'studyhub:moderation_log',
   data: id => 'studyhub:data:' + id
 };
 
@@ -50,6 +52,9 @@ const K = {
 const byId = id => document.getElementById(id);
 const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const newUUID = () => (typeof crypto !== 'undefined' && crypto.randomUUID)
+  ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
 const todayStr = (d = new Date()) => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
 const isEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -87,7 +92,7 @@ let D = null;         // current user's data object (see newUserData)
 
 function newUserData() {
   return {
-    profile: { year: '', subjects: [], grade: '', strong: [], weak: [], onboarded: false },
+    profile: { year: '', subjects: [], grade: '', strong: [], weak: [], onboarded: false, avatar: '' },
     xp: 0,
     quizScores: [],      // percent scores of completed quizzes (numbers)
     subjectStats: {},    // { subjectKey: { correct, total } }
@@ -97,6 +102,10 @@ function newUserData() {
     notes: [],           // { id, subject, title, body, ts }
     sessions: [],        // { id, date 'YYYY-MM-DD', subject, topic, time, dur, done }
     goals: [],           // { id, title, due, progress }
+    plannerOnboarding: null, // { subjects:[keys], days:[0..6], targetGrade, examDate, minutesPerDay, style, focusWeak, createdAt }
+    plannerTasks: [],    // { id(uuid), weekStart, title, subject, dueDate, type, status, evidenceRequired, createdAt }
+    taskEvidence: [],    // { id(uuid), taskId, kind, detail, createdAt }
+    diagnostics: [],     // { ts, scope, overall, perSubject:{key:pct}, level }
     savedPrompts: [],    // { id, title, text, fav, ts }
     favTools: [],        // tool names
     achievements: [],    // unlocked achievement ids

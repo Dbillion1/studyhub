@@ -53,12 +53,17 @@ function wireGlobalEvents() {
       if (!e.target.closest('#userMenu') && !e.target.closest('.user-chip')) menu.classList.remove('open');
     }
     if (e.target.classList && e.target.classList.contains('modal-wrap')) e.target.classList.remove('open');
+    const nav = byId('navLinks');
+    if (nav && nav.classList.contains('open')) {
+      if (!e.target.closest('#navLinks') && !e.target.closest('#navToggle')) { if (typeof closeNav === 'function') closeNav(); }
+    }
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       const open = [...document.querySelectorAll('.modal-wrap.open')];
       if (open.length) open[open.length - 1].classList.remove('open');
       closeUserMenu();
+      if (typeof closeNav === 'function') closeNav();
     }
   });
 
@@ -76,6 +81,7 @@ async function boot() {
   if (typeof handleCheckoutReturn === 'function') await handleCheckoutReturn();
   applyAuthUI();
   wireGlobalEvents();
+  if (typeof a11yEnhance === 'function') a11yEnhance();
   animateCounters();
   showPage(loggedIn ? 'dashboard' : 'landing');
 
