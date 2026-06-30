@@ -40,6 +40,10 @@ async function initialiseLoggedInUser(user) {
   Store.setJSON(K.session, session);
   D = loadUserData(session.id);
   try { if (backendConfigured()) await backendGetAccount(); } catch (e) { console.warn(e); }
+  try { if (backendConfigured() && typeof loadPlannerFromBackend === 'function') await loadPlannerFromBackend(); } catch (e) { console.warn(e); }
+  try { if (backendConfigured() && typeof loadRevisionFromBackend === 'function') await loadRevisionFromBackend(); } catch (e) { console.warn(e); }
+  try { if (backendConfigured() && typeof backendGetMyRole === 'function') session.role = await backendGetMyRole(); } catch (e) { console.warn(e); }
+  try { if (backendConfigured() && typeof loadCommunityFromBackend === 'function') await loadCommunityFromBackend(); } catch (e) { console.warn(e); }
   applyAuthUI();
 }
 
@@ -168,21 +172,26 @@ let selectedSubjects = [], selectedStrong = [], selectedWeak = [];
 
 function buildOnboarding() {
   obStep = 0;
-  selectedYear = null; selectedGrade = null;
-  selectedSubjects = []; selectedStrong = []; selectedWeak = [];
+  const p = (D && D.profile) ? D.profile : {};
+  selectedYear = p.year || null;
+  selectedGrade = p.grade || null;
+  selectedSubjects = Array.isArray(p.subjects) ? p.subjects.slice() : [];
+  selectedStrong = Array.isArray(p.strong) ? p.strong.slice() : [];
+  selectedWeak = Array.isArray(p.weak) ? p.weak.slice() : [];
+  const on = (cond) => cond ? ' selected' : '';
 
-  const years = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12 (Lower Sixth)', 'Year 13 (Upper Sixth)'];
-  byId('yearGroup').innerHTML = years.map(y => `<div class="ob-option" onclick="selectYear(this,'${y}')">${y}</div>`).join('');
+  const years = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11'];
+  byId('yearGroup').innerHTML = years.map(y => `<div class="ob-option${on(y === selectedYear)}" onclick="selectYear(this,'${y}')">${y}</div>`).join('');
 
   const subs = ['Mathematics', 'English Language', 'English Literature', 'Biology', 'Chemistry', 'Physics', 'Geography', 'History', 'Computer Science', 'French', 'German', 'Art', 'Music', 'Drama'];
-  byId('subjectPicker').innerHTML = subs.map(s => `<div class="ob-option" onclick="toggleOb(this,'sub')" style="display:inline-flex;margin:0.25rem">${s}</div>`).join('');
+  byId('subjectPicker').innerHTML = subs.map(s => `<div class="ob-option${on(selectedSubjects.includes(s))}" onclick="toggleOb(this,'sub')" style="display:inline-flex;margin:0.25rem">${s}</div>`).join('');
 
   const grades = ['Grade 9 (A**)', 'Grade 8 (A*)', 'Grade 7 (A)', 'Grade 6 (B+)', 'Grade 5 (B)', 'Grade 4 (C)'];
-  byId('gradePicker').innerHTML = grades.map(g => `<div class="ob-option" onclick="selectGrade(this,'${g.replace(/'/g, "\\'")}')">${g}</div>`).join('');
+  byId('gradePicker').innerHTML = grades.map(g => `<div class="ob-option${on(g === selectedGrade)}" onclick="selectGrade(this,'${g.replace(/'/g, "\\'")}')">${g}</div>`).join('');
 
   const core = ['Mathematics', 'English', 'Science', 'Geography', 'History', 'Computer Science', 'French', 'German'];
-  byId('strongPicker').innerHTML = core.map(s => `<div class="ob-option" onclick="toggleOb(this,'strong')" style="display:inline-flex;margin:0.25rem">${s}</div>`).join('');
-  byId('weakPicker').innerHTML = core.map(s => `<div class="ob-option" onclick="toggleOb(this,'weak')" style="display:inline-flex;margin:0.25rem">${s}</div>`).join('');
+  byId('strongPicker').innerHTML = core.map(s => `<div class="ob-option${on(selectedStrong.includes(s))}" onclick="toggleOb(this,'strong')" style="display:inline-flex;margin:0.25rem">${s}</div>`).join('');
+  byId('weakPicker').innerHTML = core.map(s => `<div class="ob-option${on(selectedWeak.includes(s))}" onclick="toggleOb(this,'weak')" style="display:inline-flex;margin:0.25rem">${s}</div>`).join('');
 
   document.querySelectorAll('#view-onboard .onboarding-step').forEach((s, i) => s.classList.toggle('active', i === 0));
   document.querySelectorAll('#obDots .step-dot').forEach((d, i) => { d.classList.toggle('active', i === 0); d.classList.remove('done'); });
@@ -209,14 +218,14 @@ function obNext() {
 }
 async function finishOnboarding() {
   if (!session || !D) { closeAuth(); return; }
-  D.profile = {
+  D.profile = Object.assign({}, D.profile || {}, {
     year: selectedYear || '',
     subjects: selectedSubjects.slice(),
     grade: selectedGrade || '',
     strong: selectedStrong.slice(),
     weak: selectedWeak.slice(),
     onboarded: true
-  };
+  });
   logActivity('onboard', 'Completed profile setup');
   saveData();
   try { if (backendConfigured()) await backendSyncProfile(); } catch (e) { console.warn(e); }

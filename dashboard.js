@@ -41,6 +41,9 @@ function renderDashboard() {
   byId('dashTip').style.display = 'flex';
   byId('dashTipText').textContent = tipForToday();
 
+  // plan & billing card (current plan, upgrade, manage billing, refresh)
+  if (typeof renderPlanStatus === 'function') renderPlanStatus('dashboardPlanStatus');
+
   // stat cards
   byId('statXP').textContent = D.xp.toLocaleString();
   byId('statXPchg').textContent = D.xp > 0 ? ('Level ' + lvl + ' — ' + levelTitle(lvl)) : 'Start earning XP';

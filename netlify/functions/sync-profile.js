@@ -2,13 +2,15 @@ const { json, empty, verifyUser, ensureProfile, updateProfile, publicAccount } =
 
 function cleanProfile(p) {
   p = p && typeof p === 'object' ? p : {};
+  const avatar = typeof p.avatar === 'string' ? p.avatar.slice(0, 200000) : '';
   return {
     year: String(p.year || '').slice(0, 80),
     subjects: Array.isArray(p.subjects) ? p.subjects.slice(0, 30).map(String) : [],
     grade: String(p.grade || '').slice(0, 80),
     strong: Array.isArray(p.strong) ? p.strong.slice(0, 30).map(String) : [],
     weak: Array.isArray(p.weak) ? p.weak.slice(0, 30).map(String) : [],
-    onboarded: !!p.onboarded
+    onboarded: !!p.onboarded,
+    avatar
   };
 }
 

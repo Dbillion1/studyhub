@@ -41,6 +41,7 @@ function showPage(page) {
   const links = document.querySelectorAll('.nav-link');
   if (NAV_INDEX[page] !== undefined && links[NAV_INDEX[page]]) links[NAV_INDEX[page]].classList.add('active');
   closeUserMenu();
+  closeNav();
   // page init hooks
   if (page === 'dashboard') renderDashboard();
   if (page === 'tutor') renderTutor();
@@ -50,6 +51,7 @@ function showPage(page) {
   if (page === 'gamification') renderGamification();
   if (page === 'tools') renderTools();
   if (page === 'prompts') renderPrompts();
+  if (typeof a11yEnhance === 'function') a11yEnhance();
 }
 function navTo(page) {
   if (AUTH_PAGES.includes(page) && !session) { openAuth('signup'); return; }
@@ -60,14 +62,41 @@ function navTo(page) {
 function toggleUserMenu(e) { if (e) e.stopPropagation(); byId('userMenu').classList.toggle('open'); }
 function closeUserMenu() { const m = byId('userMenu'); if (m) m.classList.remove('open'); }
 
+/* ---------- mobile nav (hamburger) ---------- */
+function toggleNav() {
+  const n = byId('navLinks'), t = byId('navToggle');
+  if (!n) return;
+  const open = n.classList.toggle('open');
+  if (t) { t.classList.toggle('open', open); t.setAttribute('aria-expanded', open ? 'true' : 'false'); t.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); }
+}
+function closeNav() {
+  const n = byId('navLinks'), t = byId('navToggle');
+  if (n) n.classList.remove('open');
+  if (t) { t.classList.remove('open'); t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Open menu'); }
+}
+
 /* ---------- auth UI state ---------- */
 function avatarChar(name) { return (name || '?').trim().charAt(0).toUpperCase() || '?'; }
+function currentAvatar() { return (D && D.profile && typeof D.profile.avatar === 'string') ? D.profile.avatar : ''; }
+function paintAvatar(el, name, avatarData) {
+  if (!el) return;
+  if (avatarData && /^(data:|https?:)/.test(avatarData)) {
+    el.style.backgroundImage = 'url("' + avatarData.replace(/"/g, '%22') + '")';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.textContent = '';
+  } else {
+    el.style.backgroundImage = '';
+    el.textContent = avatarChar(name);
+  }
+}
 function applyAuthUI() {
   const inEl = byId('authIn'), outEl = byId('authOut');
   if (session) {
     outEl.classList.add('hidden'); inEl.classList.remove('hidden');
     byId('navName').textContent = session.name.split(' ')[0];
-    byId('navAvatar').textContent = avatarChar(session.name);
+    paintAvatar(byId('navAvatar'), session.name, currentAvatar());
+    paintAvatar(byId('umAvatar'), session.name, currentAvatar());
     byId('umName').textContent = session.name;
     byId('umEmail').textContent = session.email;
     const pc = byId('planChip'); if (pc && typeof planBadgeHtml === 'function') pc.innerHTML = planBadgeHtml(getPlan());
@@ -90,7 +119,7 @@ function updateSidebarUser() {
   const n = byId('sbName'), l = byId('sbLevel'), a = byId('sbAvatar');
   if (n) n.textContent = session.name;
   if (l) l.textContent = '⭐ Level ' + levelFor(D.xp);
-  if (a) a.textContent = avatarChar(session.name);
+  if (a) paintAvatar(a, session.name, currentAvatar());
 }
 
 /* ---------- modals ---------- */
@@ -113,7 +142,13 @@ function openSettings() {
   if (!session) { openAuth('login'); return; }
   const nameEl = byId('set-name'); if (nameEl) nameEl.value = session.name;
   const providerEl = byId('set-provider'); if (providerEl) providerEl.value = (D.settings && D.settings.provider) || 'openai';
+  const p1 = byId('set-pass'); if (p1) p1.value = '';
+  const p2 = byId('set-pass2'); if (p2) p2.value = '';
+  if (typeof fieldErr === 'function') { fieldErr('set-pass', ''); fieldErr('set-pass2', ''); }
+  if (typeof renderSettingsAvatar === 'function') renderSettingsAvatar();
   if (typeof renderPlanStatus === 'function') renderPlanStatus('settingsPlanStatus');
+  if (typeof renderFamilySection === 'function') renderFamilySection();
+  if (typeof renderOwnerEntry === 'function') renderOwnerEntry();
   openModal('settingsModal');
 }
 async function saveSettings() {
@@ -146,6 +181,105 @@ function confirmClearData() {
     closeModal('settingsModal');
     showToast('Your data has been cleared', 'info');
     showPage('dashboard');
+  });
+}
+
+/* ---------- profile picture ---------- */
+function renderSettingsAvatar() {
+  paintAvatar(byId('set-avatar-preview'), session ? session.name : '', currentAvatar());
+}
+function onAvatarPick(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { showToast('Please choose an image file', 'error'); input.value = ''; return; }
+  if (file.size > 8 * 1024 * 1024) { showToast('That image is too large (max 8MB)', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = async () => {
+      try {
+        const size = 128;
+        const c = document.createElement('canvas'); c.width = size; c.height = size;
+        const cx = c.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        cx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        const dataUrl = c.toDataURL('image/jpeg', 0.82);
+        D.profile = D.profile || {};
+        D.profile.avatar = dataUrl;
+        saveData();
+        renderSettingsAvatar();
+        applyAuthUI();
+        showToast('Profile picture updated', 'success');
+        try { if (backendConfigured()) await backendSyncProfile(); } catch (e) { console.warn(e); }
+      } catch (e) { showToast('Could not process that image', 'error'); }
+    };
+    img.onerror = () => showToast('Could not read that image', 'error');
+    img.src = reader.result;
+  };
+  reader.onerror = () => showToast('Could not read that file', 'error');
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+function removeAvatar() {
+  if (!D || !D.profile || !D.profile.avatar) { showToast('No picture to remove', 'info'); return; }
+  D.profile.avatar = '';
+  saveData();
+  renderSettingsAvatar();
+  applyAuthUI();
+  showToast('Profile picture removed', 'info');
+  (async () => { try { if (backendConfigured()) await backendSyncProfile(); } catch (e) { console.warn(e); } })();
+}
+
+/* ---------- change password ---------- */
+async function changePassword() {
+  const p1 = byId('set-pass'), p2 = byId('set-pass2');
+  if (typeof fieldErr === 'function') { fieldErr('set-pass', ''); fieldErr('set-pass2', ''); }
+  const a = p1 ? p1.value : '', b = p2 ? p2.value : '';
+  if (!a || a.length < 6) { fieldErr('set-pass', 'Use at least 6 characters'); return; }
+  if (a !== b) { fieldErr('set-pass2', 'Passwords do not match'); return; }
+  if (backendConfigured()) {
+    try { await backendChangePassword(a); }
+    catch (e) { fieldErr('set-pass', e.message || 'Could not update password'); return; }
+  } else if (session) {
+    const users = Store.getJSON(K.users, {});
+    if (users[session.email]) { users[session.email].passHash = hashPass(a); Store.setJSON(K.users, users); }
+  }
+  if (p1) p1.value = ''; if (p2) p2.value = '';
+  showToast('Password updated', 'success');
+}
+
+/* ---------- edit study profile (re-run onboarding, pre-filled) ---------- */
+function editStudyProfile() {
+  if (!session) { openAuth('login'); return; }
+  closeUserMenu();
+  closeModal('settingsModal');
+  openAuth('onboard');
+}
+
+/* ---------- delete account ---------- */
+function confirmDeleteAccount() {
+  confirmAction('Delete your account?', 'This permanently deletes your account and all of your study data. This cannot be undone.', 'Delete account', async () => {
+    try {
+      if (backendConfigured()) {
+        await backendDeleteAccount();
+      } else if (session) {
+        const users = Store.getJSON(K.users, {});
+        delete users[session.email];
+        Store.setJSON(K.users, users);
+        Store.del(K.data(session.id));
+      }
+      Store.del(K.session);
+      session = null; D = null;
+      closeModal('confirmModal');
+      closeModal('settingsModal');
+      applyAuthUI();
+      showPage('landing');
+      showToast('Your account has been deleted', 'info');
+    } catch (e) {
+      closeModal('confirmModal');
+      showToast(e.message || 'Could not delete account. Please try again.', 'error');
+    }
   });
 }
 
@@ -183,4 +317,15 @@ function toggleFaq(el) { el.classList.toggle('open'); }
 function showDashTab(tab) {
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   if (window.event && window.event.currentTarget) window.event.currentTarget.classList.add('active');
+}
+
+/* ---------- accessibility enhancement pass (Phase 13) ---------- */
+function a11yEnhance() {
+  try {
+    document.querySelectorAll('.icon-btn[title]:not([aria-label])').forEach(b => {
+      const t = b.getAttribute('title'); if (t) b.setAttribute('aria-label', t);
+    });
+    document.querySelectorAll('.modal-close:not([aria-label])').forEach(b => b.setAttribute('aria-label', 'Close'));
+    const tc = byId('toastContainer'); if (tc) { tc.setAttribute('aria-live', 'polite'); tc.setAttribute('role', 'status'); }
+  } catch (e) { /* non-fatal */ }
 }

@@ -15,6 +15,7 @@ function sessionsOn(dateStr) { return D.sessions.filter(s => s.date === dateStr)
 
 function renderPlanner() {
   if (!session || !D) return;
+  if (typeof renderSmartPlan === 'function') renderSmartPlan();
   ensureCal();
   byId('calMonthLabel').textContent = MONTHS[calMonth] + ' ' + calYear;
 
@@ -216,4 +217,187 @@ function deleteGoal(id) {
     afterChange();
     renderPlanner();
   });
+}
+
+/* ════════════════════════════════════════════════════════════
+   PHASE 6 — smart study plan: onboarding, generated weekly tasks,
+   and evidence-based completion. Stored locally and mirrored to the
+   Supabase planner tables (best-effort) when configured.
+   ════════════════════════════════════════════════════════════ */
+
+const EVIDENCE_LABELS = {
+  self: 'Self-confirmed', flashcards: 'Flashcards reviewed', quiz_score: 'Quiz taken',
+  note: 'Made notes', written: 'Wrote answers', ai_marked: 'AI checked'
+};
+const STYLE_ACTION = { mix: 'Revise', flashcards: 'Flashcards:', practice: 'Practice questions:', reading: 'Read and note:' };
+
+function weekStartStr(d) {
+  const x = d ? new Date(d) : new Date();
+  const dow = (x.getDay() + 6) % 7; // Monday = 0
+  x.setDate(x.getDate() - dow);
+  return todayStr(x);
+}
+function dateForWeekday(weekStart, weekdayIndex) {
+  const [y, m, d] = weekStart.split('-').map(Number);
+  return todayStr(new Date(y, m - 1, d + weekdayIndex));
+}
+function thisWeekTasks() {
+  const ws = weekStartStr();
+  return (D.plannerTasks || []).filter(t => t.weekStart === ws);
+}
+
+function renderSmartPlan() {
+  const el = byId('plannerSmart'); if (!el) return;
+  if (!D.plannerOnboarding) {
+    el.innerHTML = '<div class="card"><div class="flex items-center justify-between" style="gap:1rem;flex-wrap:wrap">'
+      + '<div><h3 style="font-weight:800">🧭 Smart study plan</h3>'
+      + '<p class="fs-sm text-muted" style="max-width:48ch;margin-top:0.25rem">Answer a few quick questions and StudyHub builds a weekly revision plan, then tracks real progress using evidence, not just ticked boxes.</p></div>'
+      + '<button class="btn btn-primary" onclick="openPlannerOnboarding()">Set up my plan</button></div></div>';
+    return;
+  }
+  const tasks = thisWeekTasks();
+  const done = tasks.filter(t => t.status === 'done').length;
+  const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+  const rows = tasks.slice().sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '')).map(t => {
+    const subj = SUBJECTS[t.subject] || { icon: '📘', title: t.subject };
+    const ev = (D.taskEvidence || []).filter(e => e.taskId === t.id);
+    const evLabel = ev.length ? (EVIDENCE_LABELS[ev[ev.length - 1].kind] || 'Evidence') : '';
+    return '<div class="session-row ' + (t.status === 'done' ? 'done' : '') + '">'
+      + '<div class="session-ico" style="background:' + (SUBJECT_COLORS[t.subject] || 'var(--accent)') + '">' + subj.icon + '</div>'
+      + '<div class="flex-1"><div class="fw-600 fs-sm">' + esc(t.title) + '</div>'
+      + '<div class="fs-xs text-muted">' + esc(subj.title) + ' · ' + niceDate(t.dueDate) + (t.status === 'done' && evLabel ? ' · ✓ ' + esc(evLabel) : '') + '</div></div>'
+      + '<div class="row-actions">' + (t.status === 'done'
+        ? '<button class="icon-btn" title="Mark not done" onclick="undoTaskEvidence(\'' + t.id + '\')">↩️</button>'
+        : '<button class="btn btn-primary btn-sm" onclick="openEvidence(\'' + t.id + '\')">Complete</button>') + '</div></div>';
+  }).join('');
+  el.innerHTML = '<div class="card">'
+    + '<div class="flex items-center justify-between mb-2" style="gap:1rem;flex-wrap:wrap">'
+    + '<div><h3 style="font-weight:800">🧭 This week\'s study plan</h3>'
+    + '<div class="fs-xs text-muted">' + done + ' of ' + tasks.length + ' done · evidence-based progress</div></div>'
+    + '<div class="flex gap-sm flex-wrap"><button class="btn btn-ghost btn-sm" onclick="openPlannerOnboarding()">Edit settings</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="regenerateWeek()">Regenerate week</button></div></div>'
+    + '<div class="progress mb-2"><div class="progress-fill" style="width:' + pct + '%;background:var(--grad1)"></div></div>'
+    + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
+    + (rows || '<div class="empty" style="padding:1rem"><p>No tasks this week yet. <a style="color:var(--accent);cursor:pointer" onclick="regenerateWeek()">Generate them</a>.</p></div>')
+    + '</div></div>';
+}
+
+function openPlannerOnboarding() {
+  if (!session) { openAuth('login'); return; }
+  const ob = D.plannerOnboarding || {};
+  const profSubs = ((D.profile && D.profile.subjects) || []).map(s => String(s).toLowerCase());
+  const guess = SUBJECT_KEYS.filter(k => profSubs.some(s => s.indexOf(SUBJECTS[k].title.toLowerCase().split(' ')[0]) !== -1));
+  const chosen = new Set((ob.subjects && ob.subjects.length) ? ob.subjects : (guess.length ? guess : ['maths', 'english', 'science']));
+  byId('po-subjects').innerHTML = SUBJECT_KEYS.map(k =>
+    '<label class="chk"><input type="checkbox" value="' + k + '"' + (chosen.has(k) ? ' checked' : '') + '/> ' + SUBJECTS[k].icon + ' ' + SUBJECTS[k].title + '</label>').join('');
+  const grades = ['Grade 9', 'Grade 8', 'Grade 7', 'Grade 6', 'Grade 5', 'Grade 4'];
+  byId('po-grade').innerHTML = grades.map(g => '<option' + ((ob.targetGrade || '') === g ? ' selected' : '') + '>' + g + '</option>').join('');
+  byId('po-exam').value = ob.examDate || '';
+  const dset = new Set(ob.days || [0, 1, 2, 3, 4]);
+  const WDS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  byId('po-days').innerHTML = WDS.map((d, i) => '<label class="chk"><input type="checkbox" value="' + i + '"' + (dset.has(i) ? ' checked' : '') + '/> ' + d + '</label>').join('');
+  byId('po-mins').value = ob.minutesPerDay || 45;
+  byId('po-style').value = ob.style || 'mix';
+  byId('po-weak').checked = ob.focusWeak !== false;
+  openModal('plannerOnboardModal');
+}
+
+function savePlannerOnboarding() {
+  const subjects = [].slice.call(document.querySelectorAll('#po-subjects input:checked')).map(i => i.value);
+  const days = [].slice.call(document.querySelectorAll('#po-days input:checked')).map(i => parseInt(i.value, 10)).sort((a, b) => a - b);
+  if (!subjects.length) { showToast('Pick at least one subject', 'error'); return; }
+  if (!days.length) { showToast('Pick at least one study day', 'error'); return; }
+  const ob = {
+    subjects, days,
+    targetGrade: byId('po-grade').value,
+    examDate: byId('po-exam').value || '',
+    minutesPerDay: Math.max(10, Math.min(240, parseInt(byId('po-mins').value, 10) || 45)),
+    style: byId('po-style').value || 'mix',
+    focusWeak: !!byId('po-weak').checked,
+    createdAt: Date.now()
+  };
+  D.plannerOnboarding = ob;
+  generateWeekTasks(true);
+  closeModal('plannerOnboardModal');
+  logActivity('planner', 'Set up a study plan');
+  afterChange();
+  if (typeof backendConfigured === 'function' && backendConfigured() && typeof backendSavePlannerOnboarding === 'function') backendSavePlannerOnboarding(ob).catch(() => {});
+  renderPlanner();
+  showToast('Your study plan is ready', 'success');
+}
+
+function generateWeekTasks(replace) {
+  const ob = D.plannerOnboarding; if (!ob) return;
+  const ws = weekStartStr();
+  if (replace) {
+    const removed = (D.plannerTasks || []).filter(t => t.weekStart === ws).map(t => t.id);
+    D.plannerTasks = (D.plannerTasks || []).filter(t => t.weekStart !== ws);
+    D.taskEvidence = (D.taskEvidence || []).filter(e => removed.indexOf(e.taskId) === -1);
+  }
+  const profWeak = ((D.profile && D.profile.weak) || []).map(s => String(s).toLowerCase());
+  let pool = [];
+  ob.subjects.forEach(k => {
+    pool.push(k);
+    if (ob.focusWeak && profWeak.some(w => SUBJECTS[k].title.toLowerCase().indexOf(w.split(' ')[0]) !== -1)) pool.push(k);
+  });
+  if (!pool.length) pool = ob.subjects.slice();
+  const action = STYLE_ACTION[ob.style] || 'Revise';
+  const topicIdx = {};
+  const tasks = ob.days.map((dayIdx, n) => {
+    const k = pool[n % pool.length];
+    const topics = SUBJECTS[k].topics;
+    const ti = (topicIdx[k] || 0) % topics.length; topicIdx[k] = (topicIdx[k] || 0) + 1;
+    return {
+      id: newUUID(), weekStart: ws, title: action + ' ' + topics[ti], subject: k,
+      dueDate: dateForWeekday(ws, dayIdx), type: 'revision', status: 'todo', evidenceRequired: true, createdAt: Date.now()
+    };
+  });
+  D.plannerTasks = (D.plannerTasks || []).concat(tasks);
+  if (typeof backendConfigured === 'function' && backendConfigured() && typeof backendSyncPlannerTasks === 'function') backendSyncPlannerTasks(ws, tasks).catch(() => {});
+}
+
+function regenerateWeek() {
+  if (!D.plannerOnboarding) { openPlannerOnboarding(); return; }
+  confirmAction('Regenerate this week?', "This replaces this week's generated tasks with a fresh set. Evidence logged for this week will be cleared.", 'Regenerate', () => {
+    generateWeekTasks(true);
+    closeModal('confirmModal');
+    afterChange();
+    renderPlanner();
+    showToast("This week's plan refreshed", 'success');
+  });
+}
+
+let evidenceTaskId = null;
+function openEvidence(taskId) {
+  const t = (D.plannerTasks || []).find(x => x.id === taskId); if (!t) return;
+  evidenceTaskId = taskId;
+  byId('evidenceTaskTitle').textContent = t.title;
+  byId('ev-kind').value = 'self';
+  byId('ev-note').value = '';
+  openModal('evidenceModal');
+}
+function saveEvidence() {
+  const t = (D.plannerTasks || []).find(x => x.id === evidenceTaskId);
+  if (!t) { closeModal('evidenceModal'); return; }
+  const kind = byId('ev-kind').value || 'self';
+  const note = byId('ev-note').value.trim().slice(0, 500);
+  const ev = { id: newUUID(), taskId: t.id, kind, detail: { note }, createdAt: Date.now() };
+  D.taskEvidence = (D.taskEvidence || []).concat(ev);
+  t.status = 'done';
+  if (typeof awardXP === 'function') awardXP(20, 'task');
+  logActivity('task', 'Completed: ' + t.title);
+  closeModal('evidenceModal');
+  afterChange();
+  if (typeof backendConfigured === 'function' && backendConfigured() && typeof backendAddEvidence === 'function') backendAddEvidence(ev, t).catch(() => {});
+  renderPlanner();
+  showToast('Logged with evidence. +20 XP', 'success');
+}
+function undoTaskEvidence(taskId) {
+  const t = (D.plannerTasks || []).find(x => x.id === taskId); if (!t) return;
+  t.status = 'todo';
+  D.taskEvidence = (D.taskEvidence || []).filter(e => e.taskId !== taskId);
+  afterChange();
+  if (typeof backendConfigured === 'function' && backendConfigured() && typeof backendClearEvidence === 'function') backendClearEvidence(taskId, t).catch(() => {});
+  renderPlanner();
+  showToast('Marked as not done', 'info');
 }
