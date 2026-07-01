@@ -8,8 +8,8 @@
 window.STUDYHUB_CONFIG = {
   // Required for production login/subscriptions. Get these from:
   // Supabase Dashboard → Project Settings → API
-  supabaseUrl: 'PASTE_YOUR_SUPABASE_PROJECT_URL_HERE',
-  supabaseAnonKey: 'PASTE_YOUR_SUPABASE_ANON_PUBLIC_KEY_HERE',
+  supabaseUrl: 'https://ngauujvblrzjpzqechwx.supabase.co',
+  supabaseAnonKey: 'sb_publishable_wGys_ooBz8xryxnvrQgK1g_cNMQwCut',
 
   aiProvider: 'openai',
   aiModel: 'gpt-4o-mini',
